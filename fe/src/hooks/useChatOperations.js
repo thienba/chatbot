@@ -2,14 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { INITIAL_MESSAGE, API_ENDPOINTS } from "../constants";
 
 export const useChatOperations = () => {
-  const [chatHistory, setChatHistory] = useState(() => {
-    const saved = localStorage.getItem("chatHistory");
-    return saved ? JSON.parse(saved) : [INITIAL_MESSAGE];
-  });
-
-  useEffect(() => {
-    localStorage.setItem("chatHistory", JSON.stringify(chatHistory));
-  }, [chatHistory]);
+  const [chatHistory, setChatHistory] = useState([INITIAL_MESSAGE]);
 
   const handleStreamResponse = async (response, setChatHistory) => {
     const decoder = new TextDecoder();
@@ -36,7 +29,7 @@ export const useChatOperations = () => {
             const newHistory = [...prev];
             newHistory[newHistory.length - 1] = {
               role: "assistant",
-              content: newContent
+              content: newContent,
             };
             return newHistory;
           });
@@ -46,12 +39,15 @@ export const useChatOperations = () => {
   };
 
   const handleErrorResponse = (setChatHistory) => {
-    setChatHistory(prev => {
-      const newHistory = prev.filter(msg => msg.content !== "");
-      return [...newHistory, {
-        role: "assistant",
-        content: "Sorry, there was an error processing your request."
-      }];
+    setChatHistory((prev) => {
+      const newHistory = prev.filter((msg) => msg.content !== "");
+      return [
+        ...newHistory,
+        {
+          role: "assistant",
+          content: "Sorry, there was an error processing your request.",
+        },
+      ];
     });
   };
 
@@ -91,8 +87,20 @@ export const useChatOperations = () => {
     }
   }, []);
 
-  const clearHistory = useCallback(() => {
-    setChatHistory([INITIAL_MESSAGE]);
+  const clearHistory = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_ENDPOINTS.CHAT}?chat_id=default`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      setChatHistory([INITIAL_MESSAGE]);
+    } catch (error) {
+      console.error("Error clearing chat history:", error);
+    }
   }, []);
 
   useEffect(() => {

@@ -16,14 +16,14 @@ def handle_preflight():
         response = make_response()
         response.headers.add("Access-Control-Allow-Origin", "http://localhost:3000")
         response.headers.add("Access-Control-Allow-Headers", "Content-Type")
-        response.headers.add("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
+        response.headers.add("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS")
         return response
 
 CORS(app, resources={
     r"/v1/*": {
         "origins": ["http://localhost:3000"],
         "allow_headers": ["Content-Type"],
-        "methods": ["GET", "POST", "OPTIONS"]
+        "methods": ["GET", "POST", "DELETE", "OPTIONS"]
     }
 })
 api = Api(app)
@@ -32,7 +32,14 @@ client = OpenAI(
     api_key=os.getenv('GROQ_API_KEY')
 )
 
-chat_histories = {}
+chat_histories = {
+    "default": [
+        {
+            "role": "assistant",
+            "content": "Hi, how can I help you today?"
+        }
+    ]
+}
 
 class ChatBot(Resource):
     def post(self):
@@ -44,14 +51,12 @@ class ChatBot(Resource):
             user_message = data['message']
             chat_id = data.get('chat_id', 'default')
             
-            # Initialize chat history if it doesn't exist
             if chat_id not in chat_histories:
                 chat_histories[chat_id] = [{
                     "role": "assistant",
                     "content": "Hi, how can I help you today?"
                 }]
 
-            # Add user message to chat history
             chat_histories[chat_id].append({
                 "role": "user",
                 "content": user_message
@@ -76,7 +81,7 @@ class ChatBot(Resource):
                         full_response += content
                         yield f"data: {content}\n\n"
 
-                # Add assistant's complete response to chat history
+
                 chat_histories[chat_id].append({
                     "role": "assistant",
                     "content": full_response
@@ -106,6 +111,20 @@ class ChatBot(Resource):
                     'chat_id': chat_id,
                     'history': chat_histories.get(chat_id, [])
                 }
+            }, 200
+        except Exception as e:
+            return {'status': 'error', 'message': str(e)}, 500
+
+    def delete(self):
+        try:
+            chat_id = request.args.get('chat_id', 'default')
+            chat_histories[chat_id] = [{
+                "role": "assistant",
+                "content": "Hi, how can I help you today?"
+            }]
+            return {
+                'status': 'success',
+                'message': 'Chat history cleared successfully'
             }, 200
         except Exception as e:
             return {'status': 'error', 'message': str(e)}, 500
