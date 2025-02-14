@@ -2,6 +2,7 @@ from flask import Flask, request, Response, make_response
 from flask_restful import Resource, Api
 from datetime import datetime
 from openai import OpenAI
+from langdetect import detect
 import os
 from dotenv import load_dotenv
 from flask_cors import CORS
@@ -51,10 +52,33 @@ class ChatBot(Resource):
             user_message = data['message']
             chat_id = data.get('chat_id', 'default')
             
+            detected_lang = detect(user_message)
+            
+            SYSTEM_MESSAGES = {
+                'vi': """You are a helpful and intelligent AI assistant. Please respond in Vietnamese.
+                    You can help with tasks like:
+                    - Finding information
+                    - Solving problems
+                    - Helping with tasks
+                    - Answering questions""",
+                'en': """You are a helpful and intelligent AI assistant. Please respond in English.
+                    You can help with tasks like:
+                    - Finding information
+                    - Solving problems
+                    - Helping with tasks
+                    - Answering questions"""
+            }
+            
+            system_message = {
+                "role": "system",
+                "content": SYSTEM_MESSAGES['vi'] if detected_lang == 'vi' else SYSTEM_MESSAGES['en']
+            }
+            
             if chat_id not in chat_histories:
+                initial_greeting = "Xin chào! Tôi có thể giúp gì cho bạn hôm nay?" if detected_lang == 'vi' else "Hi, how can I help you today?"
                 chat_histories[chat_id] = [{
                     "role": "assistant",
-                    "content": "Hi, how can I help you today?"
+                    "content": initial_greeting
                 }]
 
             chat_histories[chat_id].append({
@@ -66,7 +90,7 @@ class ChatBot(Resource):
                 response_stream = client.chat.completions.create(
                     model="mixtral-8x7b-32768",
                     messages=[
-                        {"role": "system", "content": "You are a helpful assistant."},
+                        system_message,
                         *chat_histories[chat_id]
                     ],
                     temperature=0.7,

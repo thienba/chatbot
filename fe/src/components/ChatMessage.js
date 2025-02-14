@@ -21,7 +21,9 @@ export const ChatMessage = memo(({ role, content }) => {
       </span>
       <div className="flex-1">
         <p className="font-medium">{isAssistant ? "Assistant" : "You"}</p>
-        <p className="mt-1 whitespace-pre-wrap">{content}</p>
+        <p className="mt-1 whitespace-pre-wrap">
+          {isAssistant ? content.replace(/(\d+\.)/g, "\n$1").trim() : content}
+        </p>
       </div>
     </div>
   );
